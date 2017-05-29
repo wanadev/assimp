@@ -237,6 +237,7 @@ namespace glTF {
     {
         Value v;
         v.SetObject();
+
         {
             WriteColorOrTex(v, m.ambient, "ambient", w.mAl);
             WriteColorOrTex(v, m.diffuse, "diffuse", w.mAl);
@@ -248,7 +249,25 @@ namespace glTF {
 
             v.AddMember("shininess", m.shininess, w.mAl);
         }
-        obj.AddMember("values", v, w.mAl);
+
+        if (w.mAsset.extensionsUsed.KHR_materials_common) {
+            Value technique;
+            technique.SetString("PHONG");
+
+            Value khrMaterialsCommon;
+            khrMaterialsCommon.SetObject();
+            khrMaterialsCommon.AddMember("technique", technique, w.mAl);
+            khrMaterialsCommon.AddMember("values", v, w.mAl);
+
+            Value extensions;
+            extensions.SetObject();
+            extensions.AddMember("KHR_materials_common", khrMaterialsCommon, w.mAl);
+
+            obj.AddMember("extensions", extensions, w.mAl);
+        }
+        else {
+            obj.AddMember("values", v, w.mAl);
+        }
     }
 
     namespace {
@@ -624,7 +643,7 @@ namespace glTF {
             if (false)
                 exts.PushBack(StringRef("KHR_binary_glTF"), mAl);
 
-            if (false)
+            if (mAsset.extensionsUsed.KHR_materials_common)
                 exts.PushBack(StringRef("KHR_materials_common"), mAl);
         }
 

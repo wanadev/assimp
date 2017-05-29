@@ -59,6 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Header files, standart library.
 #include <memory>
 #include <inttypes.h>
+#include <fstream>
 
 #include "glTFAssetWriter.h"
 
@@ -113,6 +114,7 @@ glTFExporter::glTFExporter(const char* filename, IOSystem* pIOSystem, const aiSc
     mScene = sceneCopy.get();
 
     mAsset.reset( new glTF::Asset( pIOSystem ) );
+    mAsset->extensionsUsed.KHR_materials_common = mProperties->GetPropertyBool("ext-khr-materials-common");
 
     if (isBinary) {
         mAsset->SetAsBinary();
@@ -330,6 +332,23 @@ void glTFExporter::GetMatColorOrTex(const aiMaterial* mat, glTF::TexProperty& pr
                             prop.texture->source->mimeType = mimeType;
                         }
                     }
+                    else if (mProperties->GetPropertyBool("full-embedded")) {
+                        std::stringstream filePath;
+                        filePath << mProperties->GetPropertyString("root-path") << path;
+
+                        std::ifstream file(filePath.str(), std::ios::binary);
+                        std::vector<char> buffer((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                        if (buffer.size() == 0) {
+                            DefaultLogger::get()->warn("GLTF: unable to load file: " + filePath.str());
+                            return;
+                        }
+
+                        uint8_t* data = new uint8_t[buffer.size()];
+                        memcpy(data, buffer.data(), buffer.size());
+                        prop.texture->source->SetData(data, buffer.size(), *mAsset);
+                        prop.texture->source->mimeType = "image/png"; // @todo determine mimetype
+                    }
                     else {
                         prop.texture->source->uri = path;
                     }
@@ -351,7 +370,6 @@ void glTFExporter::ExportMaterials()
     aiString aiName;
     for (unsigned int i = 0; i < mScene->mNumMaterials; ++i) {
         const aiMaterial* mat = mScene->mMaterials[i];
-
 
         std::string name;
         if (mat->Get(AI_MATKEY_NAME, aiName) == AI_SUCCESS) {
@@ -469,8 +487,8 @@ void ExportSkin(Asset& mAsset, const aiMesh* aimesh, Ref<Mesh>& meshRef, Ref<Buf
             float vertWeight      = aib->mWeights[idx_weights].mWeight;
 
             // A vertex can only have at most four joint weights. Ignore all others.
-            if (jointsPerVertex[vertexId] > 3) { 
-                continue; 
+            if (jointsPerVertex[vertexId] > 3) {
+                continue;
             }
 
             vertexJointData[vertexId][jointsPerVertex[vertexId]] = jointNamesIndex;
