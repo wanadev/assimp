@@ -145,7 +145,7 @@ glTFExporter::glTFExporter(const char* filename, IOSystem* pIOSystem, const aiSc
     if (isBinary) {
         writer.WriteGLBFile(filename);
     } else {
-        writer.WriteFile(filename);
+        writer.WriteFile(filename, mProperties->GetPropertyBool("full-embedded"));
     }
 }
 

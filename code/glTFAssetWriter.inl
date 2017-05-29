@@ -513,8 +513,31 @@ namespace glTF {
         }
     }
 
-    inline void AssetWriter::WriteFile(const char* path)
+    inline void AssetWriter::WriteFile(const char* path, bool embeddedBin)
     {
+        // Keeping them all here, so that strings are not scoped out (and destroyed)
+        // before writing to file
+        std::vector<std::string> buffersData64;
+
+        // Embed buffer if requested
+        if (embeddedBin) {
+            auto& buffers = mDoc["buffers"];
+            for (auto bufferIt = buffers.MemberBegin(); bufferIt != buffers.MemberEnd(); ++bufferIt) {
+                auto& uri = bufferIt->value["uri"];
+
+                // Find corresponding buffer
+                for (size_t i = 0; i < mAsset.buffers.Size(); ++i) {
+                    if (mAsset.buffers[i].GetURI() == uri) {
+                        buffersData64.emplace_back();
+                        auto& data64 = buffersData64.back();
+                        mAsset.buffers[i].EncodeData64(data64);
+                        uri.SetString(data64.data(), data64.size());
+                        break;
+                    }
+                }
+            }
+        }
+
         std::unique_ptr<IOStream> jsonOutFile(mAsset.OpenFile(path, "wt", true));
 
         if (jsonOutFile == 0) {
@@ -529,6 +552,8 @@ namespace glTF {
         if (jsonOutFile->Write(docBuffer.GetString(), docBuffer.GetSize(), 1) != 1) {
             throw DeadlyExportError("Failed to write scene data!");
         }
+
+        if (embeddedBin) return;
 
         // Write buffer data to separate .bin files
         for (unsigned int i = 0; i < mAsset.buffers.Size(); ++i) {

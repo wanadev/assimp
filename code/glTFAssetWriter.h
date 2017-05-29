@@ -81,7 +81,7 @@ public:
 
     AssetWriter(Asset& asset);
 
-    void WriteFile(const char* path);
+    void WriteFile(const char* path, bool embedded = false);
     void WriteGLBFile(const char* path);
 };
 
