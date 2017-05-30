@@ -340,8 +340,20 @@ void glTFExporter::GetMatColorOrTex(const aiMaterial* mat, glTF::TexProperty& pr
                         std::vector<char> buffer((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
 
                         if (buffer.size() == 0) {
-                            DefaultLogger::get()->warn("GLTF: unable to load file: " + filePath.str());
-                            return;
+                            // Try to find the file basename in the root path
+                            auto fileBaseName = filePath.str().substr(filePath.str().find_last_of("\\/") + 1);
+
+                            std::stringstream fileOtherPath;
+                            fileOtherPath << mProperties->GetPropertyString("root-path") << fileBaseName;
+                            DefaultLogger::get()->warn("GLTF: Failed to load some file, trying " + fileOtherPath.str());
+
+                            std::ifstream file(fileOtherPath.str(), std::ios::binary);
+                            buffer.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                            if (buffer.size() == 0) {
+                                DefaultLogger::get()->error("GLTF: unable to load file: " + filePath.str());
+                                return;
+                            }
                         }
 
                         uint8_t* data = new uint8_t[buffer.size()];
