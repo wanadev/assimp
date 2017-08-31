@@ -1,16 +1,14 @@
 /*
----------------------------------------------------------------------------
 Open Asset Import Library (assimp)
----------------------------------------------------------------------------
+----------------------------------------------------------------------
 
 Copyright (c) 2006-2017, assimp team
-
 
 All rights reserved.
 
 Redistribution and use of this software in source and binary forms,
-with or without modification, are permitted provided that the following
-conditions are met:
+with or without modification, are permitted provided that the
+following conditions are met:
 
 * Redistributions of source code must retain the above
 copyright notice, this list of conditions and the
@@ -37,33 +35,61 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
----------------------------------------------------------------------------
+
+----------------------------------------------------------------------
 */
 
-#include "UnitTestPCH.h"
-#include "AbstractImportExportBase.h"
+/** @file glTFWriter.h
+ * Declares a class to write gltf/glb files
+ *
+ * glTF Extensions Support:
+ *   KHR_binary_glTF: full
+ *   KHR_materials_common: full
+ */
+#ifndef GLTF2ASSETWRITER_H_INC
+#define GLTF2ASSETWRITER_H_INC
 
-#include <assimp/Importer.hpp>
+#ifndef ASSIMP_BUILD_NO_GLTF_IMPORTER
 
-using namespace Assimp;
+#include "glTF2Asset.h"
 
+namespace glTF2
+{
 
-class utOpenGEXImportExport : public AbstractImportExportBase {
+using rapidjson::MemoryPoolAllocator;
+
+class AssetWriter
+{
+    template<class T>
+    friend void WriteLazyDict(LazyDict<T>& d, AssetWriter& w);
+
+private:
+
+    void WriteBinaryData(IOStream* outfile, size_t sceneLength);
+
+    void WriteMetadata();
+    void WriteExtensionsUsed();
+
+    template<class T>
+    void WriteObjects(LazyDict<T>& d);
+
 public:
-    virtual bool importerTest() {
-        Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/Example.ogex", 0 );
-        return nullptr != scene;
-    }
+    Document mDoc;
+    Asset& mAsset;
+
+    MemoryPoolAllocator<>& mAl;
+
+    AssetWriter(Asset& asset);
+
+    void WriteFile(const char* path);
+    void WriteGLBFile(const char* path);
 };
 
-TEST_F( utOpenGEXImportExport, importLWSFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
 }
 
-TEST_F( utOpenGEXImportExport, Importissue1262_NoCrash ) {
-    Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/light_issue1262.ogex", 0 );
-    EXPECT_NE( nullptr, scene );
+// Include the implementation of the methods
+#include "glTF2AssetWriter.inl"
 
-}
+#endif // ASSIMP_BUILD_NO_GLTF_IMPORTER
+
+#endif // GLTF2ASSETWRITER_H_INC

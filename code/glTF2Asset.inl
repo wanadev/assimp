@@ -51,7 +51,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using namespace Assimp;
 
-namespace glTF {
+namespace glTF2 {
 
 namespace {
 
@@ -242,6 +242,7 @@ Ref<T> LazyDict<T>::Create(const char* id)
     }
     T* inst = new T();
     inst->id = id;
+    inst->index = mObjs.size();
     return Add(inst);
 }
 
@@ -321,53 +322,6 @@ inline void Buffer::Read(Value& obj, Asset& r)
                 throw DeadlyImportError("GLTF: could not open referenced file \"" + std::string(uri) + "\"");
             }
         }
-    }
-}
-
-inline void Buffer::EncodeData64(std::string& ret) {
-    static const std::string base64_chars =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        "abcdefghijklmnopqrstuvwxyz"
-        "0123456789+/";
-
-    unsigned char const* bytes_to_encode = mData.get();
-    unsigned int in_len = byteLength;
-
-    ret = "data:application/octet-stream;base64,";
-    int i = 0;
-    int j = 0;
-    unsigned char char_array_3[3];
-    unsigned char char_array_4[4];
-
-    while (in_len--) {
-        char_array_3[i++] = *(bytes_to_encode++);
-        if (i == 3) {
-        char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-        char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-        char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-        char_array_4[3] = char_array_3[2] & 0x3f;
-
-        for(i = 0; (i <4) ; i++)
-            ret += base64_chars[char_array_4[i]];
-        i = 0;
-        }
-    }
-
-    if (i)
-    {
-        for(j = i; j < 3; j++)
-        char_array_3[j] = '\0';
-
-        char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-        char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-        char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-        char_array_4[3] = char_array_3[2] & 0x3f;
-
-        for (j = 0; (j < i + 1); j++)
-        ret += base64_chars[char_array_4[j]];
-
-        while((i++ < 3))
-        ret += '=';
     }
 }
 
@@ -1290,14 +1244,15 @@ inline void AssetMetadata::Read(Document& doc)
     }
 
     version = std::max(statedVersion, version);
+
     if (version == 0) {
-        // if missing version, we'll assume version 1...
+        // if missing version, we'll assume version 1.0...
         version = 1;
     }
 
     if (version != 1) {
         char msg[128];
-        ai_snprintf(msg, 128, "GLTF: Unsupported glTF version: %.0f", version);
+        ai_snprintf(msg, 128, "GLTF: Unsupported glTF version: %.1f", version);
         throw DeadlyImportError(msg);
     }
 }

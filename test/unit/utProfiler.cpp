@@ -39,31 +39,38 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
-
 #include "UnitTestPCH.h"
-#include "AbstractImportExportBase.h"
+#include "UTLogStream.h"
+#include "code/Profiler.h"
+#include <assimp/DefaultLogger.hpp>
 
-#include <assimp/Importer.hpp>
+using namespace ::Assimp;
+using namespace ::Assimp::Profiling;
 
-using namespace Assimp;
-
-
-class utOpenGEXImportExport : public AbstractImportExportBase {
+class utProfiler : public ::testing::Test {
 public:
-    virtual bool importerTest() {
-        Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/Example.ogex", 0 );
-        return nullptr != scene;
+    LogStream *m_stream;
+
+    /*virtual void SetUp() {
+        m_stream = new UTLogStream;
+        DefaultLogger::create();
+        DefaultLogger::get()->attachStream( m_stream );
     }
+
+    virtual void TearDown() {
+        DefaultLogger::get()->detatchStream( m_stream );
+        m_stream = nullptr;
+    }*/
 };
 
-TEST_F( utOpenGEXImportExport, importLWSFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
-}
-
-TEST_F( utOpenGEXImportExport, Importissue1262_NoCrash ) {
-    Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/light_issue1262.ogex", 0 );
-    EXPECT_NE( nullptr, scene );
-
+TEST_F( utProfiler, addRegion_success ) {
+    Profiler myProfiler;
+    myProfiler.BeginRegion( "t1" );
+    for ( int i=0; i<10; i++ ) {
+        volatile int j=0;
+        j++;
+    }
+    myProfiler.EndRegion( "t1" );
+    //UTLogStream *stream( (UTLogStream*) m_stream );
+    //EXPECT_FALSE( stream->m_messages.empty() );
 }

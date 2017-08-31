@@ -5,7 +5,6 @@ Open Asset Import Library (assimp)
 
 Copyright (c) 2006-2017, assimp team
 
-
 All rights reserved.
 
 Redistribution and use of this software in source and binary forms,
@@ -39,31 +38,26 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---------------------------------------------------------------------------
 */
+#pragma once
 
-#include "UnitTestPCH.h"
-#include "AbstractImportExportBase.h"
+#include <assimp/LogStream.hpp>
 
-#include <assimp/Importer.hpp>
-
-using namespace Assimp;
-
-
-class utOpenGEXImportExport : public AbstractImportExportBase {
+class UTLogStream : public Assimp::LogStream {
 public:
-    virtual bool importerTest() {
-        Assimp::Importer importer;
-        const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/Example.ogex", 0 );
-        return nullptr != scene;
+    UTLogStream()
+    : LogStream() {
+        // empty
     }
+
+    virtual ~UTLogStream() {
+        // empty
+    }
+
+    virtual void write(const char* message) {
+        if ( nullptr != message ) {
+            m_messages.push_back( std::string( message ) );
+        }
+    }
+
+    std::vector<std::string> m_messages;
 };
-
-TEST_F( utOpenGEXImportExport, importLWSFromFileTest ) {
-    EXPECT_TRUE( importerTest() );
-}
-
-TEST_F( utOpenGEXImportExport, Importissue1262_NoCrash ) {
-    Assimp::Importer importer;
-    const aiScene *scene = importer.ReadFile( ASSIMP_TEST_MODELS_DIR "/OpenGEX/light_issue1262.ogex", 0 );
-    EXPECT_NE( nullptr, scene );
-
-}
