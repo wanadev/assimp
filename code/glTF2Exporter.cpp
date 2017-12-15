@@ -59,6 +59,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Header files, standard library.
 #include <memory>
 #include <inttypes.h>
+#include <sstream>
+#include <fstream>
 
 #include "glTF2AssetWriter.h"
 
@@ -108,6 +110,10 @@ glTF2Exporter::glTF2Exporter(const char* filename, IOSystem* pIOSystem, const ai
     mScene = sceneCopy.get();
 
     mAsset.reset( new Asset( pIOSystem ) );
+
+    if (isBinary) {
+        mAsset->SetAsBinary();
+    }
 
     ExportMetadata();
 
@@ -337,6 +343,34 @@ void glTF2Exporter::GetMatTex(const aiMaterial* mat, Ref<Texture>& texture, aiTe
                             mimeType += (memcmp(tex->achFormatHint, "jpg", 3) == 0) ? "jpeg" : tex->achFormatHint;
                             texture->source->mimeType = mimeType;
                         }
+                    }
+                    else if (mProperties->GetPropertyBool("embed-textures")) { // Force embedding
+                        std::stringstream filePath;
+                        filePath << mProperties->GetPropertyString("root-path") << path;
+
+                        std::ifstream file(filePath.str(), std::ios::binary);
+                        std::vector<char> buffer((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                        if (buffer.size() == 0) {
+                            // Try to find the file basename in the root path
+                            auto fileBaseName = filePath.str().substr(filePath.str().find_last_of("\\/") + 1);
+
+                            std::stringstream fileOtherPath;
+                            fileOtherPath << mProperties->GetPropertyString("root-path") << fileBaseName;
+                            DefaultLogger::get()->warn("GLTF: Failed to load " + filePath.str() + "\ntrying " + fileOtherPath.str());
+
+                            std::ifstream file(fileOtherPath.str(), std::ios::binary);
+                            buffer.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                            if (buffer.size() == 0) {
+                                DefaultLogger::get()->error("GLTF: unable to load file: " + filePath.str());
+                                return;
+                            }
+                        }
+
+                        // Add to the texture
+                        texture->source->SetData(reinterpret_cast<uint8_t*>(buffer.data()), buffer.size(), *mAsset);
+                        texture->source->mimeType = "image/png"; // @todo determine mimetype
                     }
                     else {
                         texture->source->uri = path;
