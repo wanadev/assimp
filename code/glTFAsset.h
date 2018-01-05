@@ -591,6 +591,8 @@ namespace glTF
             { return std::string(this->id) + ".bin"; }
 
         static const char* TranslateId(Asset& r, const char* id);
+
+        void EncodeData64(std::string& ret);
     };
 
     //! A view into a buffer generally representing a subset of the buffer.

@@ -59,6 +59,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Header files, standard library.
 #include <memory>
 #include <inttypes.h>
+#include <fstream>
 
 #include "glTFAssetWriter.h"
 
@@ -113,6 +114,7 @@ glTFExporter::glTFExporter(const char* filename, IOSystem* pIOSystem, const aiSc
     mScene = sceneCopy.get();
 
     mAsset.reset( new glTF::Asset( pIOSystem ) );
+    mAsset->extensionsUsed.KHR_materials_common = mProperties->GetPropertyBool("ext-khr-materials-common");
 
     if (isBinary) {
         mAsset->SetAsBinary();
@@ -143,7 +145,7 @@ glTFExporter::glTFExporter(const char* filename, IOSystem* pIOSystem, const aiSc
     if (isBinary) {
         writer.WriteGLBFile(filename);
     } else {
-        writer.WriteFile(filename);
+        writer.WriteFile(filename, mProperties->GetPropertyBool("full-embedded"));
     }
 }
 
@@ -330,6 +332,35 @@ void glTFExporter::GetMatColorOrTex(const aiMaterial* mat, glTF::TexProperty& pr
                             prop.texture->source->mimeType = mimeType;
                         }
                     }
+                    else if (mProperties->GetPropertyBool("full-embedded")) {
+                        std::stringstream filePath;
+                        filePath << mProperties->GetPropertyString("root-path") << path;
+
+                        std::ifstream file(filePath.str(), std::ios::binary);
+                        std::vector<char> buffer((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                        if (buffer.size() == 0) {
+                            // Try to find the file basename in the root path
+                            auto fileBaseName = filePath.str().substr(filePath.str().find_last_of("\\/") + 1);
+
+                            std::stringstream fileOtherPath;
+                            fileOtherPath << mProperties->GetPropertyString("root-path") << fileBaseName;
+                            DefaultLogger::get()->warn("GLTF: Failed to load some file, trying " + fileOtherPath.str());
+
+                            std::ifstream file(fileOtherPath.str(), std::ios::binary);
+                            buffer.assign((std::istreambuf_iterator<char>(file)), (std::istreambuf_iterator<char>()));
+
+                            if (buffer.size() == 0) {
+                                DefaultLogger::get()->error("GLTF: unable to load file: " + filePath.str());
+                                return;
+                            }
+                        }
+
+                        uint8_t* data = new uint8_t[buffer.size()];
+                        memcpy(data, buffer.data(), buffer.size());
+                        prop.texture->source->SetData(data, buffer.size(), *mAsset);
+                        prop.texture->source->mimeType = "image/png"; // @todo determine mimetype
+                    }
                     else {
                         prop.texture->source->uri = path;
                     }
@@ -351,7 +382,6 @@ void glTFExporter::ExportMaterials()
     aiString aiName;
     for (unsigned int i = 0; i < mScene->mNumMaterials; ++i) {
         const aiMaterial* mat = mScene->mMaterials[i];
-
 
         std::string name;
         if (mat->Get(AI_MATKEY_NAME, aiName) == AI_SUCCESS) {
@@ -593,6 +623,8 @@ void glTFExporter::ExportMeshes()
 
 		/************** Texture coordinates **************/
         for (int i = 0; i < AI_MAX_NUMBER_OF_TEXTURECOORDS; ++i) {
+            if (!aim->mTextureCoords[i]) continue;
+
             // Flip UV y coords
             if (aim -> mNumUVComponents[i] > 1) {
                 for (unsigned int j = 0; j < aim->mNumVertices; ++j) {
